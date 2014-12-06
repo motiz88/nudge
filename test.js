@@ -52,18 +52,15 @@ describe('checkValidity', function () {
 
 describe('makeHandler', function () {
 	beforeEach(function () {
-		this.fakeProxy = new EventEmitter();
 	});
 
 	afterEach(function () {
-		this.fakeProxy.removeAllListeners();
 	});
 
 	it('should trigger the basic event handler then spec is true.', function () {
-		var handler = makeHandler('handlerName', true, this.fakeProxy);
 		var basicString;
 
-		this.fakeProxy.on('data', function (string) {
+		var handler = makeHandler('handlerName', true, function (string) {
 			basicString = string;
 		});
 
@@ -73,10 +70,8 @@ describe('makeHandler', function () {
 	});
 
 	it('should trigger the named event handler then spec has a name field.', function () {
-		var handler = makeHandler('handlerName', { name: 'customName' }, this.fakeProxy);
-		var basicString;
-
-		this.fakeProxy.on('data', function (string) {
+		var basicString;		
+		var handler = makeHandler('handlerName', { name: 'customName' }, function (string) {
 			basicString = string;
 		});
 
@@ -90,12 +85,10 @@ describe('makeHandler', function () {
 			preProcessor: function (args, callback) {
 				callback(args.join(''));
 			}
-		}, this.fakeProxy);
-		var basicString;
-
-		this.fakeProxy.on('data', function (string) {
+		}, function (string) {
 			basicString = string;
 		});
+		var basicString;
 
 		handler(1, 2, 3);
 
@@ -103,15 +96,13 @@ describe('makeHandler', function () {
 	});
 
 	it('should use a custom name and handler when spec has a preProcessor function and name.', function () {
+		var basicString;
 		var handler = makeHandler('handlerName', {
 			name: 'customName',
 			preProcessor: function (args, callback) {
 				callback(args.join(''));
 			}
-		}, this.fakeProxy);
-		var basicString;
-
-		this.fakeProxy.on('data', function (string) {
+		}, function (string) {
 			basicString = string;
 		});
 
@@ -120,7 +111,9 @@ describe('makeHandler', function () {
 		assert.equal(basicString, 'event: customName\ndata: "123"\n\n');
 	});
 
-	it('should filter out events that for which the handler does not call the callback.', function () {
+	it('should filter out events that for which the handler does not call the callback.', function () {		
+		var filtered = [];
+
 		var handler = makeHandler('handlerName', {
 			name: 'customName',
 			preProcessor: function (args, callback) {
@@ -130,13 +123,10 @@ describe('makeHandler', function () {
 
 				callback(args[0]);
 			}
-		}, this.fakeProxy);
-		var filtered = [];
-
-		this.fakeProxy.on('data', function (string) {
+		}, function (string) {
 			filtered.push(string);
 		});
-
+		
 		handler(true);
 		handler(false);
 		handler(true);
@@ -223,8 +213,59 @@ describe('middleware', function () {
 
 		assert.deepEqual(written, [
 			'\n',
-			'event: test\ndata: "someData"\n\n',
-			'event: test\ndata: "someOtherData"\n\n'
+			'id: 0\nevent: test\ndata: "someData"\n\n',
+			'id: 1\nevent: test\ndata: "someOtherData"\n\n'
+		]);
+	});
+		
+	it('should resend all past events to a new client with no Last-Event-ID.', function () {
+		var middleware = nudge(testEmitter, { test: true });
+
+
+		testEmitter.emit('test', 'someData');
+		testEmitter.emit('test', 'someOtherData');
+		testEmitter.emit('somethingElse', 'blah');
+
+		middleware(fakeReq, fakeRes);
+
+		assert.deepEqual(status, [200]);
+
+		assert.deepEqual(headers, [{
+			'Content-Type': 'text/event-stream',
+			'Cache-Control': 'no-cache',
+			'Connection': 'keep-alive'
+		}]);
+
+		assert.deepEqual(written, [
+			'\n',
+			'id: 0\nevent: test\ndata: "someData"\n\n',
+			'id: 1\nevent: test\ndata: "someOtherData"\n\n'
+		]);
+	});
+	
+	it('should resend all missed events to client which specified a known Last-Event-ID.', function () {
+		var middleware = nudge(testEmitter, { test: true });
+
+
+		testEmitter.emit('test', 'someData');
+		testEmitter.emit('test', 'someOtherData');
+		testEmitter.emit('somethingElse', 'blah');
+
+		fakeReq.headers = {'last-event-id': '0'};
+		middleware(fakeReq, fakeRes);
+
+		assert.deepEqual(status, [200]);
+
+		assert.deepEqual(headers, [{
+			'Content-Type': 'text/event-stream',
+			'Cache-Control': 'no-cache',
+			'Connection': 'keep-alive'
+		}]);
+
+		assert.deepEqual(written, [
+			'\n',
+			//'id: 0\nevent: test\ndata: "someData"\n\n',
+			'id: 1\nevent: test\ndata: "someOtherData"\n\n'
 		]);
 	});
 });

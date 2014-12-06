@@ -10,27 +10,36 @@ function nudge(emitter, eventSpecs) {
 	checkValidity(eventSpecs);
 
 	var proxy = makeProxyEmitter(emitter, eventSpecs);
+	
 
+	
 	return function (req, res) {
 		function write(string) {
 			res.write(string);
 		}
-
-		proxy.on('data', write);
-
-		req.once('close', function () {
-			proxy.removeListener('data', write);
-		});
-
+		
+		// SSE required newline.
+		res.write('\n');
+	
 		// Necessary headers for SSE.
 		res.status(200).set({
 			'Content-Type': 'text/event-stream',
 			'Cache-Control': 'no-cache',
 			'Connection': 'keep-alive'
 		});
+		
+		if (req.hasOwnProperty('headers')) {
+			write.lastEventId = req.headers['last-event-id'];
+		}
+			
+		proxy.on('data', write);
 
-		// SSE required newline.
-		res.write('\n');
+		req.once('close', function () {
+			proxy.removeListener('data', write);
+		});
+
+		
+
 	};
 }
 
