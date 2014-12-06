@@ -18,8 +18,6 @@ function nudge(emitter, eventSpecs) {
 			res.write(string);
 		}
 		
-		// SSE required newline.
-		res.write('\n');
 	
 		// Necessary headers for SSE.
 		res.status(200).set({
@@ -27,6 +25,9 @@ function nudge(emitter, eventSpecs) {
 			'Cache-Control': 'no-cache',
 			'Connection': 'keep-alive'
 		});
+		
+		// SSE required newline.
+		res.write('\n');
 		
 		if (req.hasOwnProperty('headers')) {
 			write.lastEventId = req.headers['last-event-id'];
