@@ -1,6 +1,6 @@
 {
   "name": "nudge",
-  "version": "0.1.3",
+  "version": "0.1.4-motiz88",
   "description": "Wrap a Node.js event emitter in an express middleware.",
   "main": "index.js",
   "scripts": {
@@ -18,11 +18,15 @@
     {
       "name": "Mark Stanley Everitt",
       "email": "mark.s.everitt@gmail.com"
+    },
+	{
+      "name": "Moti Zilberman",
+      "email": "motiz88@gmail.com"
     }
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/BrandwatchLtd/nudge"
+    "url": "https://github.com/motiz88/nudge"
   },
   "license": "MIT",
   "devDependencies": {
